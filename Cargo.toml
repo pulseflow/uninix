@@ -1,0 +1,23 @@
+[workspace]
+resolver = "2"
+members = ["packages/*"]
+
+[workspace.package]
+authors = ["Pulseflow"]
+edition = "2021"
+homepage = "https://github.com/pulseflow/uninix"
+repository = "https://github.com/pulseflow/uninix"
+readme = "README.md"
+license = "MIT"
+categories = ["linux-utilities"]
+
+[workspace.dependencies]
+clap = { version = "4.3", features = ["derive"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tokio = { version = "1.32", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+
+anyhow = { version = "1.0" }
+colored = { version = "2.0" }
+lazy_static = { version = "1.4" }
+

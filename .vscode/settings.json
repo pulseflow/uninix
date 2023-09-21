@@ -1,0 +1,19 @@
+{
+	"[rust]": {
+		"editor.defaultFormatter": "rust-lang.rust-analyzer"
+	},
+	"[nix]": {
+		"editor.defaultFormatter": "jnoortheen.nix-ide"
+	},
+	"nix.enableLanguageServer": true,
+	"prettier.useEditorConfig": true,
+	"rust-analyzer.procMacro.enable": true,
+	"rust-analyzer.procMacro.attributes.enable": true,
+	"rust-analyzer.diagnostics.experimental.enable": false,
+	"explorer.fileNesting.enabled": true,
+	"explorer.fileNesting.patterns": {
+		"Cargo.toml": "Cargo.lock, .rustfmt.toml, rust-toolchain.toml, .clippy.toml",
+		"README.md": "CODE_OF_CONDUCT.md, CONTRIBUTING.md, LICENSE",
+		"flake.nix": "flake.lock, Makefile, default.nix, shell.nix",
+	}
+}
