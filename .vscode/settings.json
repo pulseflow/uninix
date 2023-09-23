@@ -6,6 +6,13 @@
 		"editor.defaultFormatter": "jnoortheen.nix-ide"
 	},
 	"nix.enableLanguageServer": true,
+	"nix.serverPath": "nil",
+	"nix.formatterPath": "nixpkgs-fmt",
+	"nix.serverSettings": {
+        "nil": {
+            "formatting": { "command": ["nixpkgs-fmt"] }
+        }
+    },
 	"prettier.useEditorConfig": true,
 	"rust-analyzer.procMacro.enable": true,
 	"rust-analyzer.procMacro.attributes.enable": true,
@@ -14,6 +21,7 @@
 	"explorer.fileNesting.patterns": {
 		"Cargo.toml": "Cargo.lock, .rustfmt.toml, rust-toolchain.toml, .clippy.toml",
 		"README.md": "CODE_OF_CONDUCT.md, CONTRIBUTING.md, LICENSE",
-		"flake.nix": "flake.lock, Makefile, default.nix, shell.nix",
+		"flake.nix": "flake.lock, Makefile, default.nix, shell.nix, .envrc",
+		".gitignore": ".gitattributes, .editorconfig, treefmt.toml"
 	}
 }
