@@ -1,5 +1,4 @@
-{ pkgs, library }:
+{ pkgs }:
 
 {
-  uninix-cli = library.callPackage ./uninix { };
 }

@@ -10,102 +10,88 @@
     commit.url = "github:cachix/pre-commit-hooks.nix";
     commit.inputs.nixpkgs.follows = "nixpkgs";
 
+    # used to bootstrap uninix, not meant to be packaged
     crane.url = "github:ipetkov/crane";
     crane.inputs.nixpkgs.follows = "nixpkgs";
 
-    devshell.url = "github:numtide/devshell";
-    devshell.inputs.nixpkgs.follows = "nixpkgs";
+    rust.url = "github:oxalica/rust-overlay";
+    rust.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs, parts, commit, ... } @ proxy:
+  outputs = { self, nixpkgs, parts, commit, crane, rust, ... } @ proxy:
     let
+      base = nixpkgs.lib // builtins;
+
       inputs = proxy;
 
-      base = nixpkgs.lib // builtins;
-      makeLibrary = pkgs: import ./modules/library {
-        inherit (pkgs) lib newScope;
-      };
-      perSystem = { self', pkgs, system, inputs', ... }: {
-        intermediary = import ./packages {
-          inherit pkgs;
-          library = makeLibrary pkgs;
-        };
+      perSystem = { self', pkgs, system, inputs', config, ... }:
+        let
+          intermediary = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
+          bootstrap = crane.lib.${system}.overrideToolchain intermediary;
 
-        apps = {
-          format.type = "app";
-          format.program =
-            let
-              path = base.makeBinPath [ pkgs.nixpkgs-fmt ];
-            in
-            base.toString (pkgs.writeScript "format" ''
-              export PATH="${path}"
-              ${pkgs.treefmt}/bin/treefmt --clear-cache "$@"
-            '');
-        };
-
-        devShells =
-          let
-            _devshell = import "${proxy.devshell}/modules" pkgs;
-            makeDevshell = config: (_devshell {
-              configuration = {
-                inherit config;
-                imports = [ ];
-              };
-            }).shell;
-          in
-          rec {
-            default = uninix-module;
-            uninix-module = makeDevshell {
-              devshell.name = "uninix-module";
-              devshell.startup = {
-                preCommitHooks.text = self.checks.${system}.pre-commit-check.shellHook;
-                uninixEnv.text = ''export NIX_PATH=nixpkgs=${nixpkgs}'';
-              };
-
-              packages = [ pkgs.nixpkgs-fmt pkgs.mdbook ];
-              commands = [
-                {
-                  package = pkgs.treefmt;
-                  category = "formatting";
-                }
-              ] ++ base.optional pkgs.stdenv.isLinux {
-                package = pkgs.cntr;
-                category = "debugging";
-              };
-            };
+          bootstrapArgs = {
+            pname = "uninix";
+            version = self.rev or "dirty";
+            src = bootstrap.cleanCargoSource ./.;
           };
 
-        checks = {
-          pre-commit-check = commit.lib.${system}.run {
-            src = ./.;
-            hooks = {
-              treefmt = {
-                enable = true;
-                name = "treefmt";
-                pass_filenames = false;
-                entry = base.toString (pkgs.writeScript "treefmt" ''
-                  #!${pkgs.bash}/bin/bash
-                  export PATH="$PATH:${base.makeBinPath [pkgs.nixpkgs-fmt]}"
-                  ${pkgs.treefmt}/bin/treefmt --clear-cache --fail-on-change
+          artifacts = bootstrap.buildDepsOnly bootstrapArgs;
+          uninix-bootstrap = bootstrap.buildPackage (bootstrapArgs // { inherit artifacts; });
+        in
+        {
+          apps = {
+            uninix-bootstrap = {
+              type = "app";
+              program = base.getExe self'.packages.uninix-bootstrap;
+            };
+
+            format = {
+              type = "app";
+              program =
+                let path = base.makeBinPath [ pkgs.nixpkgs-fmt ];
+                in base.toString (pkgs.writeScript "format" ''
+                  export PATH="${path}"
+                  ${pkgs.treefmt}/bin/treefmt --clear-cache "$@"
                 '');
+            };
+          };
+
+          checks = {
+            uninix-bootstrap = uninix-bootstrap;
+
+            pre-commit-check = commit.lib.${system}.run {
+              src = ./.;
+              hooks = {
+                treefmt = {
+                  enable = true;
+                  name = "treefmt";
+                  pass_filenames = false;
+                  entry = base.toString (pkgs.writeScript "treefmt" ''
+                    #!${pkgs.bash}/bin/bash
+                    export PATH="$PATH:${base.makeBinPath [pkgs.nixpkgs-fmt]}"
+                    ${pkgs.treefmt}/bin/treefmt --clear-cache --fail-on-change
+                  '');
+                };
               };
             };
           };
-        };
 
-        packages = { };
+          packages = {
+            uninix-bootstrap = uninix-bootstrap;
+          };
 
-        _module.args.pkgs = import inputs.nixpkgs {
-          inherit system;
-          overlays = [ ];
+          # tysm NyCodeGHG for helping with this
+          # check out her code !
+          _module.args.pkgs = import inputs.nixpkgs {
+            inherit system;
+            overlays = [
+              rust.overlays.default
+            ];
+          };
         };
-      };
     in
     parts.lib.mkFlake { inherit inputs; } {
-      imports = [
-        ./modules/flake-parts/all-modules.nix
-        ./modules/uninix-utils/flake-module.nix
-      ];
+      imports = [ ./modules/flake-parts/all-modules.nix ];
       systems = [
         "x86_64-linux"
         "aarch64-linux"
